@@ -1,0 +1,25 @@
+[Unit]
+Description=RS3 Mini bridge (HTTP → BLE)
+Documentation=file:///opt/rs3mini-bridge/README.md
+After=network-online.target bluetooth.target NetworkManager.service
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+# INSTALL_USER is substituted by scripts/install.sh (defaults to the installing user).
+User=INSTALL_USER
+Group=INSTALL_USER
+WorkingDirectory=/opt/rs3mini-bridge
+EnvironmentFile=-/etc/rs3mini-bridge.env
+# Wait for Wi‑Fi IPv4 before BLE — shared radio on Pi Zero (see scripts/wait-wifi.sh).
+ExecStartPre=/opt/rs3mini-bridge/scripts/wait-wifi.sh
+ExecStart=/usr/bin/node server.mjs
+TimeoutStartSec=150
+TimeoutStopSec=20
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

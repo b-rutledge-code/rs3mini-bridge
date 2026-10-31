@@ -1,0 +1,17 @@
+node_modules/
+.env
+site.env
+*.log
+.deploy-version
+saved-pose.json
+bench-preset-gate.json
+calibration-poses.jsonl
+.local/
+.agent-tmp/
+proof-*.jpg
+proof-demo/
+vision-*.jpg
+vision-*.jsonl
+vision-*/
+vision-learn-report.json
+vision-understanding.json

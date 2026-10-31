@@ -1,0 +1,68 @@
+{
+  "name": "rs3mini-bridge",
+  "version": "1.0.0",
+  "description": "HTTP → BLE bridge for the DJI Ronin RS 3 Mini",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "scan": "node dev/scan.mjs",
+    "preset:watch": "node dev/preset-lab.mjs watch",
+    "preset:save": "node dev/preset-lab.mjs save",
+    "preset:go": "node dev/preset-lab.mjs go",
+    "preset:center": "node dev/preset-lab.mjs center",
+    "preset:scr": "node dev/preset-lab.mjs scr",
+    "preset:gate": "node dev/preset-lab.mjs gate",
+    "preset:test-014": "node dev/preset-lab.mjs test-014",
+    "waypoint:replay": "node dev/waypoint-replay.mjs",
+    "waypoint:from-bridge": "node dev/waypoint-from-bridge.mjs",
+    "track:replay-capture": "node dev/track-replay-20260620.mjs",
+    "calib:snapshot": "node dev/calib.mjs snapshot",
+    "calib:center": "node dev/calib.mjs center",
+    "calib:nudge": "node dev/calib.mjs nudge",
+    "calib:grid": "node dev/calib.mjs grid",
+    "calib:from-bridge": "node dev/calib-from-bridge.mjs",
+    "calib:analyze": "node dev/calib-analyze.mjs",
+    "calib:phase-a": "node dev/calib-phase-a.mjs",
+    "calib:pan-negative": "node dev/calib-pan-negative.mjs",
+    "calib:track-bench": "node dev/calib-track-bench.mjs",
+    "calib:014-roundtrip": "node dev/calib-014-roundtrip.mjs",
+    "bench:snapshot": "node dev/bench-snapshot.mjs",
+    "calib:trim": "node dev/calib-trim.mjs",
+    "calib:isolate": "node dev/calib-isolate.mjs",
+    "calib:repeat": "node dev/calib-repeat.mjs",
+    "calib:hold-burst": "node dev/calib-hold-burst.mjs",
+    "calib:closed-loop": "node dev/calib-closed-loop.mjs",
+    "vision:grab": "node dev/vision-grab.mjs",
+    "vision:observe": "node dev/vision-observe.mjs",
+    "vision:isolate": "node dev/vision-isolate.mjs",
+    "vision:demo": "node dev/vision-demo.mjs",
+    "vision:learn": "node dev/vision-learn.mjs",
+    "vision:learn:tilt+": "LEARN_FOCUS=tilt+ LEARN_EXIT_PROBE=tilt+ LEARN_HOLD_MS=6000 LEARN_MAX_CYCLES=40 node dev/vision-learn.mjs",
+    "vision:learn:pan+": "LEARN_FOCUS=pan+ LEARN_EXIT_PROBE=pan+ LEARN_HOLD_MS=6000 LEARN_MAX_CYCLES=40 node dev/vision-learn.mjs",
+    "vision:learn:pan@2": "LEARN_FOCUS=pan+,pan- LEARN_EXIT_GOAL=panAt2 LEARN_HOLD_MS=6000 LEARN_MAX_CYCLES=40 node dev/vision-learn.mjs",
+    "vision:ralph": "node dev/vision-ralph.mjs",
+    "vision:loop": "node dev/vision-loop.mjs",
+    "test": "node --experimental-test-module-mocks --test \"test/**/*.test.mjs\""
+  },
+  "keywords": [
+    "dji",
+    "rs3",
+    "gimbal",
+    "ble",
+    "noble",
+    "bitfocus-companion"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/YOUR_USER/rs3mini-bridge.git"
+  },
+  "dependencies": {
+    "@abandonware/noble": "1.9.2-26",
+    "crc-full": "^1.1.0",
+    "express": "^5.2.1"
+  }
+}

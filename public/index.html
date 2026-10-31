@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RS3 Mini bridge</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --panel: #1a2332;
+      --text: #e7ecf3;
+      --muted: #8b9cb3;
+      --ok: #3dd68c;
+      --warn: #f5c542;
+      --bad: #f07178;
+      --border: #2a3548;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 15px/1.45 system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 1.25rem;
+      max-width: 52rem;
+    }
+    h1 { font-size: 1.25rem; font-weight: 600; margin: 0 0 1.25rem; }
+    .grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+    }
+    .label { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
+    .badge {
+      display: inline-block;
+      margin-top: 0.35rem;
+      padding: 0.2rem 0.55rem;
+      border-radius: 4px;
+      font-weight: 700;
+      font-size: 1.1rem;
+    }
+    .badge.ok { background: #1a3d2e; color: var(--ok); }
+    .badge.warn { background: #3d351a; color: var(--warn); }
+    .badge.bad { background: #3d1a1f; color: var(--bad); }
+    .badge.muted { background: #2a3548; color: var(--muted); }
+    .val { font-size: 1.05rem; margin-top: 0.35rem; }
+    h2 { font-size: 0.95rem; margin: 1.5rem 0 0.75rem; font-weight: 600; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    th, td { text-align: left; padding: 0.45rem 0.5rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+    th { color: var(--muted); font-weight: 500; font-size: 0.75rem; text-transform: uppercase; }
+    .kind { font-family: ui-monospace, monospace; font-size: 0.8rem; }
+    .err { color: var(--bad); margin-top: 1rem; }
+    .foot { color: var(--muted); font-size: 0.8rem; margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>RS3 Mini bridge</h1>
+
+  <div class="grid">
+    <div class="card">
+      <div class="label">Gimbal (BLE)</div>
+      <div id="link-badge" class="badge warn">…</div>
+      <div id="ble-rssi" class="val">—</div>
+    </div>
+    <div class="card">
+      <div class="label">Battery</div>
+      <div id="battery" class="val">—</div>
+    </div>
+    <div class="card">
+      <div class="label">Motor</div>
+      <div id="motor-badge" class="badge muted">…</div>
+    </div>
+    <div class="card">
+      <div class="label">Move</div>
+      <div id="move" class="val">—</div>
+    </div>
+    <div class="card">
+      <div class="label">Bridge (Wi‑Fi)</div>
+      <div id="wifi-ssid" class="badge muted">…</div>
+      <div id="wifi-signal" class="val">—</div>
+      <div id="wifi-ip" class="val">—</div>
+    </div>
+  </div>
+
+  <h2>Events</h2>
+  <table>
+    <thead>
+      <tr><th>Time</th><th>Kind</th><th>Message</th></tr>
+    </thead>
+    <tbody id="events">
+      <tr><td colspan="3">Loading…</td></tr>
+    </tbody>
+  </table>
+
+  <p id="err" class="err" hidden></p>
+  <p class="foot" id="updated">—</p>
+
+  <script>
+    function badgeClass(label) {
+      if (label === 'OK') return 'ok';
+      if (label === 'CONN…' || label === 'NO GIMB') return 'warn';
+      return 'bad';
+    }
+
+    function motorBadgeClass(state) {
+      if (state === 'AWAKE') return 'ok';
+      if (state === 'ASLEEP') return 'muted';
+      return 'warn';
+    }
+
+    function fmtTime(iso) {
+      try {
+        return new Date(iso).toLocaleTimeString();
+      } catch {
+        return iso;
+      }
+    }
+
+    function esc(s) {
+      const d = document.createElement('div');
+      d.textContent = s ?? '';
+      return d.innerHTML;
+    }
+
+    function formatWifiSignal(wifi) {
+      if (!wifi.connected) return wifi.error || (wifi.unavailable ? 'n/a' : 'disconnected');
+      const parts = [];
+      if (wifi.signalDbm != null) parts.push(wifi.signalDbm + ' dBm');
+      if (wifi.signalPct != null) parts.push(wifi.signalPct + '%');
+      return parts.length ? parts.join(' · ') : 'signal ?';
+    }
+
+    function wifiSignalClass(wifi) {
+      if (!wifi.connected || wifi.unavailable) return 'muted';
+      const dbm = wifi.signalDbm;
+      if (dbm == null) {
+        const pct = wifi.signalPct;
+        if (pct != null && pct >= 70) return 'ok';
+        if (pct != null && pct >= 45) return 'warn';
+        return 'bad';
+      }
+      if (dbm >= -55) return 'ok';
+      if (dbm >= -70) return 'warn';
+      return 'bad';
+    }
+
+    function renderWifi(wifi) {
+      const ssidEl = document.getElementById('wifi-ssid');
+      const sigEl = document.getElementById('wifi-signal');
+      const ipEl = document.getElementById('wifi-ip');
+      const sigText = formatWifiSignal(wifi);
+      const sigClass = wifiSignalClass(wifi);
+
+      if (wifi.connected && wifi.ssid) {
+        ssidEl.textContent = wifi.ssid;
+        ssidEl.className = 'badge ' + sigClass;
+        sigEl.textContent = sigText;
+        ipEl.textContent = wifi.ip4 ? wifi.ip4 : '—';
+      } else {
+        ssidEl.textContent = wifi.unavailable ? 'n/a' : 'offline';
+        ssidEl.className = 'badge bad';
+        sigEl.textContent = sigText;
+        ipEl.textContent = '—';
+      }
+    }
+
+    function bleRssiClass(dbm) {
+      if (dbm == null) return '';
+      if (dbm >= -65) return 'ok';
+      if (dbm >= -75) return 'warn';
+      return 'bad';
+    }
+
+    function formatBleRssi(ble) {
+      if (ble.rssiDbm == null) return '—';
+      const parts = [ble.rssiDbm + ' dBm'];
+      if (ble.rssiSource) parts.push(ble.rssiSource);
+      return parts.join(' · ');
+    }
+
+    function renderBleRssi(ble) {
+      const el = document.getElementById('ble-rssi');
+      el.textContent = formatBleRssi(ble || {});
+      const cls = bleRssiClass(ble?.rssiDbm);
+      el.style.color = cls === 'ok' ? 'var(--ok)' : cls === 'warn' ? 'var(--warn)' : cls === 'bad' ? 'var(--bad)' : '';
+    }
+
+    async function refresh() {
+      const errEl = document.getElementById('err');
+      errEl.hidden = true;
+      try {
+        const [labelRes, stateRes, eventsRes] = await Promise.all([
+          fetch('/health/label'),
+          fetch('/state'),
+          fetch('/events'),
+        ]);
+        if (!labelRes.ok || !stateRes.ok || !eventsRes.ok) {
+          throw new Error('HTTP ' + [labelRes, stateRes, eventsRes].map((r) => r.status).join(', '));
+        }
+        const label = await labelRes.json();
+        const state = await stateRes.json();
+        const events = await eventsRes.json();
+
+        const badge = document.getElementById('link-badge');
+        badge.textContent = label;
+        badge.className = 'badge ' + badgeClass(label);
+        renderBleRssi(state.ble || {});
+
+        const bat = state.telemetry?.batteryPercent;
+        document.getElementById('battery').textContent =
+          bat != null ? bat + '%' : '—';
+
+        const motor = state.motor?.state ?? '—';
+        const motorBadge = document.getElementById('motor-badge');
+        motorBadge.textContent = motor;
+        motorBadge.className = 'badge ' + motorBadgeClass(motor);
+
+        const move = state.move || {};
+        document.getElementById('move').textContent =
+          move.active ? (move.axis || 'active') : 'idle';
+
+        renderWifi(state.wifi || {});
+
+        const tbody = document.getElementById('events');
+        const rows = events.events || [];
+        if (!rows.length) {
+          tbody.innerHTML = '<tr><td colspan="3">No events yet</td></tr>';
+        } else {
+          tbody.innerHTML = rows.map((e) =>
+            '<tr><td>' + esc(fmtTime(e.ts)) + '</td><td class="kind">' + esc(e.kind) +
+            '</td><td>' + esc(e.message) + (e.detail?.ip ? ' (' + esc(e.detail.ip) + ')' : '') + '</td></tr>'
+          ).join('');
+        }
+
+        document.getElementById('updated').textContent =
+          'Updated ' + new Date().toLocaleTimeString();
+      } catch (e) {
+        errEl.textContent = 'Refresh failed: ' + (e.message || e);
+        errEl.hidden = false;
+        const badge = document.getElementById('link-badge');
+        badge.textContent = 'DOWN';
+        badge.className = 'badge bad';
+        document.getElementById('ble-rssi').textContent = '—';
+      }
+    }
+
+    refresh();
+    setInterval(refresh, 2000);
+  </script>
+</body>
+</html>
